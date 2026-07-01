@@ -128,6 +128,16 @@ Representative tools:
 - `get_photoshop_state`
 - `get_elementor_state`
 - `get_browser_state`
+- `get_word_state`
+- `get_excel_state`
+- `get_powerpoint_state`
+- `get_vscode_state`
+- `get_illustrator_state`
+- `get_player_state`
+- `get_settings_state`
+- `list_supported_apps`
+- `get_shortcuts`
+- `run_app_shortcut`
 - `get_vision_providers`
 - `detect_objects`
 - `find_element`
@@ -174,6 +184,13 @@ Representative tools:
 - Photoshop and Elementor: screenshot/OCR-only semantic state helpers for panels, canvas,
   widgets, navigator, publish controls, layers/properties/export dialogs, active tool, and
   inferred document size.
+- Professional app profiles: Word, Excel, PowerPoint, VSCode, Illustrator, media players,
+  Windows Settings, and browsers expose semantic state helpers plus shortcut maps for faster
+  actions without relying on app APIs.
+- Shortcut-first control: common commands such as `word bold`, `excel format_cells`,
+  `powerpoint new_slide`, `vscode command_palette`, `illustrator pen_tool`,
+  `player play_pause`, and `settings open_settings` map to keyboard shortcuts before falling
+  back to mouse/vision.
 - Memory and workflows: remembered elements, preferences, action logs, macro recording,
   human demonstration capture, workflow listing, and replay.
 - Safety: read-only, standard, full-control, and dangerous permission levels, plus `dryRun`,

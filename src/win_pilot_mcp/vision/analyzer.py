@@ -5,6 +5,7 @@ from pathlib import Path
 
 import cv2
 
+from win_pilot_mcp.agent import resolve_app_profile
 from win_pilot_mcp.agent import DesktopModelBuilder
 from win_pilot_mcp.executor.windows import WindowManager
 from win_pilot_mcp.screenshots import ScreenshotManager
@@ -183,6 +184,9 @@ class ScreenAnalyzer:
                 "dialogs": [item.to_dict() for item in analysis.dialogs],
                 "notifications": [item.to_dict() for item in analysis.notifications],
             }
+        profile = resolve_app_profile(app)
+        if profile:
+            return _profile_state(profile.key, profile.landmarks, analysis)
         return {
             "application": application,
             "screenshot": analysis.screenshot.to_dict(),
@@ -303,3 +307,54 @@ def _infer_document_size(analysis: ScreenAnalysis) -> dict[str, int] | None:
         return None
     canvas = max(analysis.canvas_areas, key=lambda item: item.bbox.area)
     return {"width": canvas.bbox.width, "height": canvas.bbox.height}
+
+
+def _profile_state(
+    application: str,
+    landmarks: dict[str, tuple[str, ...]],
+    analysis: ScreenAnalysis,
+) -> dict[str, object]:
+    elements = analysis.elements
+    state: dict[str, object] = {
+        "application": application,
+        "screenshot": analysis.screenshot.to_dict(),
+        "activeWindow": analysis.desktop_model.get("desktop", {}).get("activeWindow"),
+        "desktopModel": analysis.desktop_model,
+        "selectedElement": analysis.selected_element.to_dict() if analysis.selected_element else None,
+        "menus": [item.to_dict() for item in analysis.menus],
+        "toolbars": [item.to_dict() for item in analysis.toolbars],
+        "tabs": [item.to_dict() for item in analysis.tabs],
+        "inputs": [item.to_dict() for item in analysis.inputs],
+        "dialogs": [item.to_dict() for item in analysis.dialogs],
+        "notifications": [item.to_dict() for item in analysis.notifications],
+    }
+    for region_name, needles in landmarks.items():
+        state[region_name] = _by_text_or_role(elements, list(needles), region_name)
+    if application in {"word", "powerpoint", "illustrator"}:
+        state["canvas"] = [item.to_dict() for item in analysis.canvas_areas]
+        state["documentSize"] = _infer_document_size(analysis)
+    if application == "excel":
+        state["gridCandidates"] = [
+            item.to_dict()
+            for item in elements
+            if any(term in f"{item.text} {item.description}".lower() for term in ("sheet", "cell", "row", "column", "fx"))
+        ]
+    if application == "vscode":
+        state["codeEditorCandidates"] = [
+            item.to_dict()
+            for item in elements
+            if any(term in f"{item.text} {item.description}".lower() for term in ("terminal", "problems", "explorer", "git", "debug"))
+        ]
+    if application == "player":
+        state["mediaControls"] = _by_text_or_role(
+            elements,
+            ["play", "pause", "next", "previous", "volume", "mute", "fullscreen"],
+            None,
+        )
+    if application == "settings":
+        state["settingCategories"] = _by_text_or_role(
+            elements,
+            ["system", "bluetooth", "network", "personalization", "apps", "accounts", "privacy"],
+            None,
+        )
+    return state

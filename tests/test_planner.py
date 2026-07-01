@@ -30,6 +30,41 @@ def test_plan_task_for_url_navigation():
     assert plan["steps"][1] == {"type": "type_text", "text": "https://example.com"}
 
 
+def test_plan_task_for_app_shortcuts():
+    planner = TaskPlanner(None, None, None, None)
+
+    assert planner.plan_task("word bold")["steps"] == [
+        {"type": "app_shortcut", "application": "word", "action": "bold", "keys": ["ctrl", "b"]}
+    ]
+    assert planner.plan_task("vscode command palette")["steps"] == [
+        {
+            "type": "app_shortcut",
+            "application": "vscode",
+            "action": "command_palette",
+            "keys": ["ctrl", "shift", "p"],
+        }
+    ]
+    assert planner.plan_task("run format document in vscode")["steps"] == [
+        {
+            "type": "app_shortcut",
+            "application": "vscode",
+            "action": "format_document",
+            "keys": ["shift", "alt", "f"],
+        }
+    ]
+
+
+def test_plan_task_for_settings_and_player_shortcuts():
+    planner = TaskPlanner(None, None, None, None)
+
+    assert planner.plan_task("open settings")["steps"] == [
+        {"type": "app_shortcut", "application": "settings", "action": "open_settings", "keys": ["win", "i"]}
+    ]
+    assert planner.plan_task("player play pause")["steps"] == [
+        {"type": "app_shortcut", "application": "player", "action": "play_pause", "keys": ["space"]}
+    ]
+
+
 def test_plan_task_for_type_into_field():
     planner = TaskPlanner(None, None, None, None)
 

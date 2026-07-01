@@ -4,6 +4,7 @@ import time
 import re
 from typing import Any
 
+from win_pilot_mcp.agent import get_app_shortcuts, list_app_profiles, resolve_app_profile
 from win_pilot_mcp.executor import ComputerExecutor
 from win_pilot_mcp.memory import MemoryStore
 from win_pilot_mcp.types import ActionOptions, PermissionLevel
@@ -230,6 +231,17 @@ class TaskPlanner:
                 required=PermissionLevel.STANDARD,
                 payload=action,
             )
+        if action["type"] == "app_shortcut":
+            keys = action["keys"]
+            return self.executor.run_action(
+                "hotkey" if len(keys) > 1 else "press_key",
+                lambda: self.executor.keyboard.hotkey(*keys)
+                if len(keys) > 1
+                else self.executor.keyboard.press_key(keys[0]),
+                options=options,
+                required=PermissionLevel.STANDARD,
+                payload=action,
+            )
         raise ValueError(f"Unsupported action type: {action['type']}")
 
     def _verify(
@@ -338,6 +350,11 @@ def _parse_prompt_actions(prompt: str) -> list[dict[str, Any]]:
 
 def _parse_high_level(prompt: str) -> list[dict[str, Any]]:
     lowered = prompt.lower()
+    shortcut = _parse_shortcut_intent(prompt)
+    if shortcut:
+        return [shortcut]
+    if lowered in {"open settings", "open windows settings"}:
+        return [{"type": "app_shortcut", "application": "settings", "action": "open_settings", "keys": ["win", "i"]}]
     if match := re.search(r"\bopen\s+([a-z0-9 ._-]+)$", lowered):
         app = match.group(1).strip()
         return [
@@ -367,6 +384,56 @@ def _parse_high_level(prompt: str) -> list[dict[str, Any]]:
             {"type": "wait", "seconds": 1.5},
         ]
     return []
+
+
+def _parse_shortcut_intent(prompt: str) -> dict[str, Any] | None:
+    normalized = prompt.strip().lower()
+    normalized = normalized.replace("-", " ")
+    normalized = re.sub(r"^(run|use|press|do)\s+", "", normalized)
+    profiles = list_app_profiles()
+
+    in_match = re.match(r"^(.+?)\s+(?:in|on|for)\s+(.+)$", normalized)
+    if in_match:
+        action = in_match.group(1).strip()
+        app_text = in_match.group(2).strip()
+        resolved = _shortcut_for(app_text, action)
+        if resolved:
+            return resolved
+
+    for profile in profiles:
+        aliases = sorted(profile["aliases"], key=len, reverse=True)
+        for alias in aliases:
+            alias_text = str(alias).lower()
+            if normalized == alias_text:
+                continue
+            if normalized.startswith(alias_text + " "):
+                action = normalized[len(alias_text) + 1 :]
+                resolved = _shortcut_for(profile["key"], action)
+                if resolved:
+                    return resolved
+            if normalized.endswith(" " + alias_text):
+                action = normalized[: -len(alias_text)].strip()
+                resolved = _shortcut_for(profile["key"], action)
+                if resolved:
+                    return resolved
+    return None
+
+
+def _shortcut_for(application: str, action: str) -> dict[str, Any] | None:
+    app_profile = resolve_app_profile(application)
+    if not app_profile:
+        return None
+    action_key = action.strip().lower().replace(" ", "_")
+    shortcuts = get_app_shortcuts(app_profile.key)
+    keys = shortcuts.get(action_key)
+    if not keys:
+        return None
+    return {
+        "type": "app_shortcut",
+        "application": app_profile.key,
+        "action": action_key,
+        "keys": keys,
+    }
 
 
 def _strip_quotes(text: str) -> str:

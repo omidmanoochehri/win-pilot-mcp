@@ -117,6 +117,70 @@ def get_browser_state() -> dict[str, Any]:
 
 
 @mcp.tool()
+def get_word_state() -> dict[str, Any]:
+    """Infer Word ribbon, document canvas, comments, review tools, and status from screenshots."""
+    return service.get_word_state()
+
+
+@mcp.tool()
+def get_excel_state() -> dict[str, Any]:
+    """Infer Excel ribbon, formula bar, grid, filters, and sheet tabs from screenshots."""
+    return service.get_excel_state()
+
+
+@mcp.tool()
+def get_powerpoint_state() -> dict[str, Any]:
+    """Infer PowerPoint ribbon, slide canvas, thumbnails, notes, and presentation controls."""
+    return service.get_powerpoint_state()
+
+
+@mcp.tool()
+def get_vscode_state() -> dict[str, Any]:
+    """Infer VSCode activity bar, explorer, editor, terminal, and command palette landmarks."""
+    return service.get_vscode_state()
+
+
+@mcp.tool()
+def get_illustrator_state() -> dict[str, Any]:
+    """Infer Illustrator toolbar, artboard, layers, properties, and color panels."""
+    return service.get_illustrator_state()
+
+
+@mcp.tool()
+def get_player_state() -> dict[str, Any]:
+    """Infer media player playback controls, timeline, playlist, and volume controls."""
+    return service.get_player_state()
+
+
+@mcp.tool()
+def get_settings_state() -> dict[str, Any]:
+    """Infer Windows Settings search, categories, and details pane."""
+    return service.get_settings_state()
+
+
+@mcp.tool()
+def list_supported_apps() -> list[dict[str, Any]]:
+    """List app profiles with landmarks and shortcut maps."""
+    return service.list_supported_apps()
+
+
+@mcp.tool()
+def get_shortcuts(application: str = "common") -> dict[str, list[str]]:
+    """Get registered keyboard shortcuts for an app profile."""
+    return service.get_shortcuts(application)
+
+
+@mcp.tool()
+def run_app_shortcut(
+    application: str,
+    action: str,
+    options: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Run a registered app shortcut, such as vscode command_palette or word bold."""
+    return service.run_app_shortcut(application, action, options)
+
+
+@mcp.tool()
 def recover_from_unexpected_state() -> dict[str, Any]:
     """Analyze the screen and recommend a recovery path for popups, loading, crashes, errors, or auth."""
     return service.recover_from_unexpected_state()

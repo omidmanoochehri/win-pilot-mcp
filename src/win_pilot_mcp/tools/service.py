@@ -4,8 +4,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from win_pilot_mcp.config import Settings, load_settings
 from win_pilot_mcp.agent import RecoveryEngine
+from win_pilot_mcp.agent import get_app_shortcuts, list_app_profiles
+from win_pilot_mcp.config import Settings, load_settings
 from win_pilot_mcp.executor import ComputerExecutor, WindowManager
 from win_pilot_mcp.logs import EventLogger
 from win_pilot_mcp.memory import MemoryStore
@@ -162,6 +163,60 @@ class WinPilotService:
 
     def get_browser_state(self) -> dict[str, Any]:
         return self.analyzer.analyze_application("browser")
+
+    def get_word_state(self) -> dict[str, Any]:
+        return self.analyzer.analyze_application("word")
+
+    def get_excel_state(self) -> dict[str, Any]:
+        return self.analyzer.analyze_application("excel")
+
+    def get_powerpoint_state(self) -> dict[str, Any]:
+        return self.analyzer.analyze_application("powerpoint")
+
+    def get_vscode_state(self) -> dict[str, Any]:
+        return self.analyzer.analyze_application("vscode")
+
+    def get_illustrator_state(self) -> dict[str, Any]:
+        return self.analyzer.analyze_application("illustrator")
+
+    def get_player_state(self) -> dict[str, Any]:
+        return self.analyzer.analyze_application("player")
+
+    def get_settings_state(self) -> dict[str, Any]:
+        return self.analyzer.analyze_application("settings")
+
+    def list_supported_apps(self) -> list[dict[str, Any]]:
+        return list_app_profiles()
+
+    def get_shortcuts(self, application: str = "common") -> dict[str, list[str]]:
+        return get_app_shortcuts(application)
+
+    def run_app_shortcut(
+        self,
+        application: str,
+        action: str,
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        shortcuts = get_app_shortcuts(application)
+        normalized_action = action.strip().lower().replace(" ", "_").replace("-", "_")
+        keys = shortcuts.get(normalized_action)
+        if not keys:
+            return {
+                "ok": False,
+                "reason": f"No shortcut '{action}' registered for {application}",
+                "available": sorted(shortcuts),
+            }
+        payload = {"application": application, "action": normalized_action, "keys": keys}
+        self.workflows.record("app_shortcut", payload)
+        return self.executor.run_action(
+            "hotkey" if len(keys) > 1 else "press_key",
+            lambda: self.executor.keyboard.hotkey(*keys)
+            if len(keys) > 1
+            else self.executor.keyboard.press_key(keys[0]),
+            ActionOptions.from_dict(options),
+            PermissionLevel.STANDARD,
+            payload,
+        )
 
     def recover_from_unexpected_state(self) -> dict[str, Any]:
         observation = self.analyze_screen()
@@ -678,6 +733,9 @@ class WinPilotService:
             return True
         if event_type == "hotkey":
             self.hotkey(payload["keys"], options=options)
+            return True
+        if event_type == "app_shortcut":
+            self.run_app_shortcut(payload["application"], payload["action"], options=options)
             return True
         if event_type == "press_key":
             self.press_key(
